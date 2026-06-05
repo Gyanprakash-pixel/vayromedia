@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Phone, Mail, Instagram, Send, CheckCircle, Loader } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 
 interface FormState {
   name: string;
@@ -32,21 +31,30 @@ export default function Contact() {
     setError('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.message) {
       setError('Please fill in all required fields.');
       return;
     }
     setLoading(true);
-    const { error: dbError } = await supabase.from('contact_submissions').insert([form]);
-    setLoading(false);
-    if (dbError) {
+    try {
+      const formData = new FormData(e.currentTarget);
+      const response = await fetch('/__forms.html', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(formData as unknown as Record<string, string>).toString(),
+      });
+      if (response.ok) {
+        setSuccess(true);
+        setForm({ name: '', email: '', phone: '', message: '' });
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
+    } catch {
       setError('Something went wrong. Please try again.');
-    } else {
-      setSuccess(true);
-      setForm({ name: '', email: '', phone: '', message: '' });
     }
+    setLoading(false);
   };
 
   const contactInfo = [
@@ -152,7 +160,11 @@ export default function Contact() {
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" className="space-y-5">
+                  <input type="hidden" name="form-name" value="contact" />
+                  <p style={{ display: 'none' }}>
+                    <label>Don't fill this out: <input name="bot-field" /></label>
+                  </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     {/* Name */}
                     <div>
